@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>记忆数字点击游戏</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background-color: #f8f8f8;
+    }
+    table {
+      border-collapse: collapse;
+      margin: auto;
+      margin-top: 90px;
+    }
+    td {
+      border: 1px solid #aaa;
+      width: 60px;
+      height: 60px;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+      background-color: #e8e8e8;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .success {
+      background-color: #90EE90;
+    }
+    .failure {
+      background-color: #FFA07A;
+    }
+    .result-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      position: fixed;
+      top: 150px;
+      z-index: 1000;
+    }
+    .result {
+      text-align: center;
+      font-size: 24px;
+      color: #FF0000;
+      padding: 10px;
+      background-color: white;
+      border-radius: 5px;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .title {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #FF8C00;
+      font-size: 50px;
+    }
+    .timer-container {
+      text-align: center;
+      margin: 20px 0;
+      padding: 10px;
+      border: 2px solid #aaa;
+      border-radius: 5px;
+      width: 150px;
+      background-color: #fff;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .timer {
+      font-size: 24px;
+      color: #333;
+    }
+    button#start {
+      font-size: 24px;
+      margin-top: 20px;
+      padding: 10px 20px;
+      cursor: pointer;
+      background-color: #0077CC;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s;
+    }
+    button#start:hover {
+      background-color: #0091EA;
+    }
+
+    button#refresh {
+      font-size: 24px;
+      margin-top: 20px;
+      margin-left: 1px;
+      padding: 10px 20px;
+      cursor: pointer;
+      background-color: #FF8C00;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+transition: background-color 0.3s;
+}
+
+button#refresh:hover {
+  background-color: #FFA500;
+}
+
+ </style>
+</head>
+<body>
+  <h1 class="title">记忆游戏</h1>
+  <div class="result-container">
+    <div class="result" id="result"></div>
+  </div>
+  <table id="grid" onclick="handleClick(event)"></table>
+  <div class="timer-container">
+    <div class="timer" id="timer">00:00</div>
+  </div>
+  <div class="buttons-container">
+    <button id="start" onclick="handleButtonClick()">开始游戏</button>
+    <button id="refresh" onclick="refreshPage()">确定</button>
+  </div>
+  <script>
+    const grid = document.getElementById("grid");
+    const result = document.getElementById("result");
+    const startButton = document.getElementById("start");
+    const timerElement = document.getElementById("timer");
+    const refreshButton = document.getElementById("refresh");
+refreshButton.style.display = "none";
+
+    let startTime;
+    let nextNum = 1;
+    let level = 1;
+    let gridSize = 1;
+    let timer;
+
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function generateGrid() {
+      const numbers = Array.from({ length: gridSize * gridSize }, (_, i) => i + 1);
+      shuffleArray(numbers);
+
+      for (let i = 0; i < gridSize; i++) {
+        const row = document.createElement("tr");
+        for (let j = 0; j < gridSize; j++) {
+          const cell = document.createElement("td");
+          const number = numbers[i * gridSize + j];
+          cell.dataset.number = number; // 存储数字到 data-number 属性
+          cell.style.width = '50px';
+          cell.style.height = '50px';
+          cell.style.fontSize = `${Math.max(100 / gridSize / 3, 30)}px`;
+          row.appendChild(cell);
+        }
+        grid.appendChild(row);
+      }
+    }
+
+
+    function startGame() {
+      resetGrid();
+      grid.style.pointerEvents = "";
+      startButton.disabled = true;
+      enableGridCells();
+      hideNumbers(); // 隐藏所有数字
+
+      if (level === 1) {
+        startButton.textContent = "开始游戏";
+      } else {
+        startButton.textContent = "继续游戏";
+      }
+
+      startTime = new Date();
+      timer = setInterval(updateTimer, 1000);
+    }
+
+    function enableGridCells() {
+      const cells = grid.getElementsByTagName("td");
+      for (let i = 0; i < cells.length; i++) {
+        cells[i].style.pointerEvents = "";
+      }
+    }
+
+    function hideNumbers() {
+      const cells = grid.getElementsByTagName("td");
+      for (let i = 0; i < cells.length; i++) {
+        cells[i].textContent = "";
+      }
+    }
+
+    function handleClick(event) {
+      if (!startTime) {
+        startTime = new Date();
+      }
+
+      const cell = event.target;
+      if (cell.tagName !== "TD") return;
+
+      const num = parseInt(cell.dataset.number, 10);
+      cell.textContent = num; // 显示数字
+
+  if (num === nextNum) {
+    cell.classList.add("success");
+    cell.style.pointerEvents = "none"; // 禁用单元格点击
+    nextNum++;
+
+    if (nextNum > gridSize * gridSize) {
+      levelUp();
+    }
+  } else {
+    cell.classList.add("failure");
+    setTimeout(() => {
+      cell.classList.remove("failure");
+      cell.textContent = "";
+    }, 500);
+  }
+}
+
+
+
+    function levelUp() {
+      clearInterval(timer);
+      timer = null;
+      startTime = null;
+      nextNum = 1;
+      level++;
+      gridSize++;
+
+      if (level <= 5) {
+        result.textContent = `恭喜你，通过第${level - 1}关！`;
+        result.style.visibility = "visible";
+        setTimeout(() => {
+          result.style.visibility = "hidden";
+        }, 2000);
+
+        startButton.disabled = false;
+        startButton.textContent = "继续游戏";
+      } else {
+        result.textContent = `恭喜你，通关游戏！`;
+        result.style.visibility = "visible";
+        setTimeout(() => {
+          result.style.visibility = "hidden";
+        }, 2000);
+
+        startButton.disabled = true;
+        startButton.textContent = "重开一局？";
+        startButton.onclick = () => {
+          location.reload();
+        };
+
+
+refreshButton.style.display = "none";
+
+refreshButton.style.display = "inline-block";
+      }
+    }
+
+
+
+
+
+
+function resetGrid() {
+  grid.innerHTML = "";
+  generateGrid();
+}
+
+function handleButtonClick() {
+  startGame();
+}
+
+function refreshPage() {
+  location.reload();
+}
+
+function updateTimer() {
+  const now = new Date();
+  const timeElapsed = Math.floor((now - startTime) / 1000);
+  const minutes = String(Math.floor(timeElapsed / 60)).padStart(2, "0");
+  const seconds = String(timeElapsed % 60).padStart(2, "0");
+
+  timerElement.textContent = `${minutes}:${seconds}`;
+}
+
+generateGrid(); // 生成初始网格
+hideNumbers(); // 隐藏所有数字
+
+  </script>
+</body>
+</html>
+
